@@ -21,7 +21,7 @@ modulesTestDMXProject::modulesTestDMXProject(QWidget *parent)
 {
 	ui.setupUi(this);
 	QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL");
-	db.setHostName("192.168.64.213");
+	db.setHostName("192.168.1.59");
 	db.setDatabaseName("testCodeDMX");
 	db.setUserName("root");
 	db.setPassword("root");
@@ -842,4 +842,9 @@ void modulesTestDMXProject::modifierEquipement(int idEquipement, const QString& 
 	else {
 		qDebug() << "Erreur lors de la mise à jour de l'équipement :" << query.lastError().text();
 	}
+}
+
+QListWidget* modulesTestDMXProject::getSceneListWidget() const
+{
+	return ui.listWidget; // Assurez-vous que 'listWidget' est le nom correct du QListWidget dans votre UI
 }

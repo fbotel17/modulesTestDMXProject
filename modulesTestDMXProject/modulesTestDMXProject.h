@@ -26,6 +26,8 @@ public:
 	void modifierEquipement(int idEquipement, const QString& nomEquipement, const QString& adresseEquipement, int nbCanalEquipement);
 	void insertEquipement(QString nomEquipement, QString adresseEquipement, int nbCanaux);
 	void insertScene(QString nomScene);
+	QListWidget* getSceneListWidget() const;
+
 
 public slots:
 	void on_actionCreer_une_sc_ne_triggered();
