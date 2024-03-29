@@ -74,6 +74,26 @@ void modulesTestDMXProject::insertScene(QString nomScene)
 	}
 }
 
+void modulesTestDMXProject::updateScene(QString oldNomScene, QString newNomScene)
+{
+	QSqlQuery query;
+	query.prepare("UPDATE scene SET nom = (:newNom) WHERE nom = (:oldNom)");
+	query.bindValue(":newNom", newNomScene);
+	query.bindValue(":oldNom", oldNomScene);
+
+	
+
+	if (query.exec()) {
+		qDebug() << "Scène modifiée avec succès!";
+		// Faire quelque chose après l'insertion réussie, si nécessaire
+	}
+	else {
+		qDebug() << "Erreur lors de la modification de la scène:" << query.lastError().text();
+		// Gérer les erreurs d'insertion ici
+	}
+}
+
+
 
 
 void modulesTestDMXProject::on_actionCreer_une_sc_ne_triggered()

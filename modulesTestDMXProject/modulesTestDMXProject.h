@@ -27,7 +27,7 @@ public:
 	void insertEquipement(QString nomEquipement, QString adresseEquipement, int nbCanaux);
 	void insertScene(QString nomScene);
 	QListWidget* getSceneListWidget() const;
-
+	void modulesTestDMXProject::updateScene(QString oldNomScene, QString newNomScene);
 
 public slots:
 	void on_actionCreer_une_sc_ne_triggered();

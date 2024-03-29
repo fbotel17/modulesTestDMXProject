@@ -16,6 +16,8 @@ private slots:
     void cleanupTestCase();
     void testInsertScene();
     void testAfficherScenes();
+    void testUpdateScene();
+    void deleteScene(const QString& sceneName);
 
 private:
     modulesTestDMXProject* testObject;
