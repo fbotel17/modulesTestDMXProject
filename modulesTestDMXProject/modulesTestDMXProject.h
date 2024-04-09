@@ -16,7 +16,6 @@ public:
 	void createChannelLabelsAndLineEdits(int channelCount, int numCanal);
 	void createFormForSelectedEquipements(const QList<QString>& selectedEquipements, const QString& selectedScene);
 
-	void insertChannelData(int idScene, QList<QPair<int, int>> channelData);
 	int getEquipmentId(const QString& equipmentName);
 	int getSceneId(const QString& sceneName);
 	int getEquipmentCanalNumber(const QString& equipmentName, int canalNumber);
@@ -39,10 +38,9 @@ public slots:
 	void on_buttonEquip_clicked();
 	void on_validateButtonEquip_clicked();
 	void on_pushButton_clicked();
-	void on_ValidateButtonCanal_clicked();
 	void handleDeleteButtonClicked();
 	void handleModifyButtonClicked(int idEquipement, const QString& nomEquipement, const QString& adresseEquipement, int nbCanalEquipement);
-
+	void saveSettings();
 
 private:
 	Ui::modulesTestDMXProjectClass ui;

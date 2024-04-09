@@ -17,7 +17,7 @@ void TestModulesDMXProject::initTestCase()
 {
     // Initialiser la base de données et l'IHM pour les tests
     QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL", "test_connection"); // Donner un nom unique à la connexion
-    db.setHostName("192.168.1.59");
+    db.setHostName("192.168.64.213");
     db.setDatabaseName("testCodeDMX");
     db.setUserName("root");
     db.setPassword("root");
