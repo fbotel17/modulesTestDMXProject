@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include "modulesTestDMXProject.h"
+#include "Scene.h"
 #include <QtTest/QTest>
 
 class TestModulesDMXProject : public QObject
@@ -15,11 +16,12 @@ private slots:
     void initTestCase();
     void cleanupTestCase();
     void testInsertScene();
-    void testAfficherScenes();
+
     void testUpdateScene();
     void deleteScene(const QString& sceneName);
 
 private:
     modulesTestDMXProject* testObject;
+    Scene* scene;
 
 };

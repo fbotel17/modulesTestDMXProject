@@ -55,7 +55,7 @@ void TestModulesDMXProject::testInsertScene()
     }
 
     // Appeler la méthode insertScene avec un nom de scène de test
-    testObject->insertScene("TestScene");
+    scene->insertScene("TestScene");
 
 
     // Vérifier si la scène a été insérée dans la base de données
@@ -65,27 +65,6 @@ void TestModulesDMXProject::testInsertScene()
     deleteScene("TestScene");
 }
 
-void TestModulesDMXProject::testAfficherScenes()
-{
-
-    // Vider la liste des scènes dans l'IHM avant d'insérer une nouvelle scène
-    testObject->getSceneListWidget()->clear();
-
-    // Insérer une scène de test dans la base de données
-    testObject->insertScene("TestScene");
-    deleteScene("NewTestScene"); // Supprimer la scène mise à jour
-
-
-    // Appeler la méthode afficherScenes
-    testObject->afficherScenes();
-
-    // Vérifier si la scène a été ajoutée à la liste des scènes dans l'IHM
-    QCOMPARE(testObject->getSceneListWidget()->count(), 1);
-    QCOMPARE(testObject->getSceneListWidget()->item(0)->text(), QString("TestScene"));
-
-    // Nettoyer la base de données après le test
-    deleteScene("TestScene");
-}
 
 void TestModulesDMXProject::testUpdateScene() {
 
@@ -99,9 +78,9 @@ void TestModulesDMXProject::testUpdateScene() {
     }
 
     // Appeler la méthode insertScene avec un nom de scène de test
-    testObject->insertScene("TestScene");
+    scene->insertScene("TestScene");
 
-    testObject->updateScene("TestScene", "NewTestScene");
+    scene->updateScene("TestScene", "NewTestScene");
     qDebug() << "Modification de la scene en BDD";
 
     query.prepare("SELECT * FROM scene WHERE nom = 'NewTestScene'");

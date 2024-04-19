@@ -40,6 +40,18 @@
     <ClCompile Include="TestModulesDMXProject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Canal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Champ.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Equipement.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="modulesTestDMXProject.h">
@@ -48,5 +60,19 @@
     <QtMoc Include="TestModulesDMXProject.h">
       <Filter>Header Files</Filter>
     </QtMoc>
+    <QtMoc Include="Canal.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Champ.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Equipement.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

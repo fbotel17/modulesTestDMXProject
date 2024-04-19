@@ -17,8 +17,9 @@
 #include <QMessageBox>
 #include <QWizard>
 
-modulesTestDMXProject::modulesTestDMXProject(QWidget *parent)
-    : QMainWindow(parent)
+
+modulesTestDMXProject::modulesTestDMXProject(QWidget* parent)
+	: QMainWindow(parent)
 {
 	ui.setupUi(this);
 	QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL");
@@ -33,17 +34,45 @@ modulesTestDMXProject::modulesTestDMXProject(QWidget *parent)
 		return;
 	}
 
+	QTcpSocket* socket = new QTcpSocket(this);
+	socket->connectToHost("192.168.64.170", 12345); // Remplacez 1234 par le numéro de port de votre serveur
+
+
+
+	in.setDevice(tcpSocket);
+	out.setDevice(tcpSocket);
+	out.setVersion(QDataStream::Qt_5_0);
 
 
 	// Afficher toutes les scènes existantes
-	afficherScenes();
-	afficherEquipements();
+	scene->afficherScenes(ui.listWidget);
+	equipement->afficherEquipements(ui.verticalLayoutEquipements);
+
 	afficherScenesCheckbox();
 	Gerer_un_equipement();
+	fillSceneComboBox();
+
+	connect(ui.testSceneButton, &QPushButton::clicked, this, &modulesTestDMXProject::testScene);
+
 }
 
 modulesTestDMXProject::~modulesTestDMXProject()
-{}
+{
+}
+
+void modulesTestDMXProject::sendData(const QByteArray& data)
+{
+	quint16 blockSize = data.size();
+	out << blockSize << data;
+	tcpSocket->flush(); // Appeler flush() sur l'objet QTcpSocket
+
+	QByteArray response;
+	in >> response;
+
+	// Traiter la réponse du serveur
+}
+
+
 
 void modulesTestDMXProject::on_pushButtonValider_clicked()
 {
@@ -51,51 +80,14 @@ void modulesTestDMXProject::on_pushButtonValider_clicked()
 	QString nomScene = ui.lineEditNomScene->text();
 
 	// Exécuter une requête SQL pour insérer les données dans la table scene
-	insertScene(nomScene);
+	scene->insertScene(nomScene);
 
 	ui.listWidget->clear();
 
-	afficherScenes();
+	scene->afficherScenes(ui.listWidget);
+
 
 }
-
-void modulesTestDMXProject::insertScene(QString nomScene)
-{
-	QSqlQuery query;
-	query.prepare("INSERT INTO scene (nom) VALUES (:nom)");
-	query.bindValue(":nom", nomScene);
-
-	if (query.exec()) {
-		qDebug() << "Scène insérée avec succès!";
-		// Faire quelque chose après l'insertion réussie, si nécessaire
-	}
-	else {
-		qDebug() << "Erreur lors de l'insertion de la scène:" << query.lastError().text();
-		// Gérer les erreurs d'insertion ici
-	}
-}
-
-void modulesTestDMXProject::updateScene(QString oldNomScene, QString newNomScene)
-{
-	QSqlQuery query;
-	query.prepare("UPDATE scene SET nom = (:newNom) WHERE nom = (:oldNom)");
-	query.bindValue(":newNom", newNomScene);
-	query.bindValue(":oldNom", oldNomScene);
-
-	
-
-	if (query.exec()) {
-		qDebug() << "Scène modifiée avec succès!";
-		// Faire quelque chose après l'insertion réussie, si nécessaire
-	}
-	else {
-		qDebug() << "Erreur lors de la modification de la scène:" << query.lastError().text();
-		// Gérer les erreurs d'insertion ici
-	}
-}
-
-
-
 
 void modulesTestDMXProject::on_actionCreer_une_sc_ne_triggered()
 {
@@ -104,7 +96,7 @@ void modulesTestDMXProject::on_actionCreer_une_sc_ne_triggered()
 
 void modulesTestDMXProject::on_actionConfigurer_une_sc_ne_2_triggered()
 {
-	afficherEquipements();
+	equipement->afficherEquipements(ui.verticalLayoutEquipements);
 	afficherScenesCheckbox();
 	ui.stackedWidget->setCurrentIndex(1);
 }
@@ -120,65 +112,10 @@ void modulesTestDMXProject::on_actionSupprimer_un_equipement_triggered()
 	ui.stackedWidget->setCurrentIndex(5);
 }
 
-void modulesTestDMXProject::afficherScenes()
+void modulesTestDMXProject::on_actionTester_une_scene_triggered()
 {
-
-
-	// Exécuter une requête pour récupérer toutes les scènes existantes
-	QSqlQuery query("SELECT * FROM scene");
-
-	// Parcourir les résultats de la requête et ajouter chaque scène à la liste
-	while (query.next()) {
-		int id = query.value(0).toInt();
-		QString nom = query.value(1).toString();
-
-		// Créer un nouvel élément pour chaque scène et l'ajouter à la liste
-		QListWidgetItem* item = new QListWidgetItem(nom);
-		ui.listWidget->addItem(item);
-	}
-}
-
-void modulesTestDMXProject::afficherEquipements()
-{
-
-
-	// Exécuter une requête pour récupérer tous les équipements existants
-	QSqlQuery query("SELECT nom FROM equipement");
-
-	// Créer un widget de défilement pour contenir le layout des équipements
-	QScrollArea* scrollArea = new QScrollArea;
-	QWidget* scrollWidget = new QWidget;
-	QVBoxLayout* layoutEquipements = new QVBoxLayout(scrollWidget);
-	scrollWidget->setLayout(layoutEquipements);
-	scrollArea->setWidget(scrollWidget);
-	scrollArea->setWidgetResizable(true);
-
-	// Récupérer le layout pour les équipements
-	QVBoxLayout* mainLayout = qobject_cast<QVBoxLayout*>(ui.verticalLayoutEquipements->layout());
-	if (!mainLayout) {
-		qDebug() << "Erreur : le layout des équipements est invalide.";
-		return;
-	}
-
-	// Effacer le contenu existant du layout principal
-	QLayoutItem* child;
-	while ((child = mainLayout->takeAt(0)) != nullptr) {
-		delete child->widget();
-		delete child;
-	}
-
-	// Parcourir les résultats de la requête et ajouter chaque équipement en tant que case à cocher
-	while (query.next()) {
-		QString nomEquipement = query.value(0).toString();
-
-		// Créer une case à cocher pour l'équipement
-		QCheckBox* checkBox = new QCheckBox(nomEquipement);
-		// Ajouter la case à cocher au layout des équipements
-		layoutEquipements->addWidget(checkBox);
-	}
-
-	// Ajouter le widget de défilement au layout principal
-	mainLayout->addWidget(scrollArea);
+	fillSceneComboBox();
+	ui.stackedWidget->setCurrentIndex(6);
 }
 
 
@@ -190,25 +127,8 @@ void modulesTestDMXProject::on_buttonEquip_clicked() {
 	int nbCanaux = ui.nbCannauxEdit->text().toInt(); // Convertir le texte en entier
 	createChannelLabelsAndLineEdits(nbCanaux, startChannelAddress);
 
-	insertEquipement(nomEquipement, adresseEquipement, nbCanaux);
+	equipement->insertEquipement(nomEquipement, adresseEquipement, nbCanaux);
 }
-
-void modulesTestDMXProject::insertEquipement(QString nomEquipement, QString adresseEquipement, int nbCanaux) {
-
-	QSqlQuery query;
-	query.prepare("INSERT INTO equipement (nom, adresse, nbCanal) VALUES (:nom, :adresse, :nbCanal)");
-	query.bindValue(":nom", nomEquipement);
-	query.bindValue(":adresse", adresseEquipement);
-	query.bindValue(":nbCanal", nbCanaux);
-
-	if (query.exec()) {
-		qDebug() << "Équipement inséré avec succès!";
-	}
-	else {
-		qDebug() << "Erreur lors de l'insertion de l'équipement:" << query.lastError().text();
-	}
-}
-
 
 
 void modulesTestDMXProject::afficherScenesCheckbox()
@@ -276,8 +196,6 @@ void modulesTestDMXProject::afficherScenesCheckbox()
 }
 
 
-
-
 void modulesTestDMXProject::createChannelLabelsAndLineEdits(int channelCount, int startChannelAddress) {
 	// Supprimez les widgets précédemment ajoutés s'il y en a
 	ui.stackedWidget->setCurrentIndex(3);
@@ -318,16 +236,8 @@ void modulesTestDMXProject::on_validateButtonEquip_clicked() {
 		QLineEdit* lineEdit = dynamic_cast<QLineEdit*>(child->widget());
 		if (lineEdit) {
 			QString nom = lineEdit->text();
+			champ->insertChamp(idEquip, idNumCanal, nom);
 
-			// Insérer les données dans la table "champ"
-			query.prepare("INSERT INTO champ (idEquip, idNumCanal, nom) VALUES (:idEquip, :idNumCanal, :nom)");
-			query.bindValue(":idEquip", idEquip);
-			query.bindValue(":idNumCanal", idNumCanal);
-			query.bindValue(":nom", nom);
-
-			if (!query.exec()) {
-				qDebug() << "Erreur lors de l'insertion des données dans la table 'champ' : " << query.lastError().text();
-			}
 
 			idNumCanal++; // Incrémenter idNumCanal pour le prochain enregistrement
 		}
@@ -458,68 +368,6 @@ void modulesTestDMXProject::createFormForSelectedEquipements(const QList<QString
 }
 
 
-
-int modulesTestDMXProject::getEquipmentId(const QString& equipmentName)
-{
-	QSqlQuery query;
-	query.prepare("SELECT id FROM equipement WHERE nom = :nom");
-	query.bindValue(":nom", equipmentName);
-
-	if (query.exec() && query.next())
-	{
-		return query.value(0).toInt();
-	}
-	else
-	{
-		qDebug() << "Erreur lors de la récupération de l'ID de l'équipement : " << query.lastError().text();
-		return -1;
-	}
-}
-
-
-int modulesTestDMXProject::getSceneId(const QString& sceneName)
-{
-	QSqlQuery query;
-	query.prepare("SELECT id FROM scene WHERE nom = :nom");
-	query.bindValue(":nom", sceneName);
-
-	if (query.exec() && query.next())
-	{
-		return query.value(0).toInt();
-	}
-	else
-	{
-		qDebug() << "Erreur lors de la récupération de l'ID de la scène : " << query.lastError().text();
-		return -1;
-	}
-}
-
-
-
-
-int modulesTestDMXProject::getEquipmentCanalNumber(const QString& equipmentName, int canalNumber)
-{
-
-	QSqlQuery query;
-	query.prepare("SELECT idNumCanal FROM champ WHERE idEquip = (SELECT id FROM equipement WHERE nom = :nom) AND idNumCanal = :idNumCanal");
-	query.bindValue(":nom", equipmentName);
-	query.bindValue(":idNumCanal", canalNumber);
-
-
-	if (query.exec() && query.next())
-	{
-
-		return canalNumber;
-
-	}
-	else
-	{
-		qDebug() << "Erreur lors de la récupération du numéro de canal : " << query.lastError().text();
-		return -1;
-	}
-}
-
-
 void modulesTestDMXProject::clearForm()
 {
 	// Effacer le layout existant
@@ -538,12 +386,11 @@ void modulesTestDMXProject::clearForm()
 // Mettre à jour la méthode Supprimer_un_equipement pour utiliser la variable membre m_idEquipementASupprimer
 void modulesTestDMXProject::Gerer_un_equipement()
 {
-
-
 	// Vérifier si un équipement doit être supprimé
 
 		// Effacer tous les widgets précédents du layout
 	QLayoutItem* child;
+
 	while ((child = ui.verticalLayout_3->takeAt(0)) != nullptr)
 	{
 		delete child->widget();
@@ -628,44 +475,6 @@ void modulesTestDMXProject::Gerer_un_equipement()
 	// Réinitialiser l'ID de l'équipement à supprimer
 	m_idEquipementASupprimer = -1;
 
-
-
-}
-
-void modulesTestDMXProject::supprimerEquipement(int idEquipement)
-{
-	// Début de la transaction SQL
-	QSqlDatabase::database().transaction();
-
-	// Supprimer d'abord les enregistrements dans la table 'champ' liés à l'équipement à supprimer
-	QSqlQuery queryDeleteChamp;
-	queryDeleteChamp.prepare("DELETE FROM champ WHERE idEquip = :id");
-	queryDeleteChamp.bindValue(":id", idEquipement);
-	if (!queryDeleteChamp.exec()) {
-		qDebug() << "Erreur lors de la suppression des enregistrements dans la table champ :" << queryDeleteChamp.lastError().text();
-		// En cas d'erreur, annuler la transaction et sortir de la fonction
-		QSqlDatabase::database().rollback();
-		return;
-	}
-
-	// Ensuite, supprimer l'équipement de la table 'equipement'
-	QSqlQuery queryDeleteEquipement;
-	queryDeleteEquipement.prepare("DELETE FROM equipement WHERE id = :id");
-	queryDeleteEquipement.bindValue(":id", idEquipement);
-	if (!queryDeleteEquipement.exec()) {
-		qDebug() << "Erreur lors de la suppression de l'équipement :" << queryDeleteEquipement.lastError().text();
-		// En cas d'erreur, annuler la transaction et sortir de la fonction
-		QSqlDatabase::database().rollback();
-		return;
-	}
-
-	// Valider la transaction SQL
-	QSqlDatabase::database().commit();
-
-	qDebug() << "Équipement supprimé avec succès de la base de données.";
-
-	// Actualiser l'affichage des équipements
-	Gerer_un_equipement();
 }
 
 
@@ -675,7 +484,7 @@ void modulesTestDMXProject::handleDeleteButtonClicked()
 	if (button) {
 		int idEquipement = button->objectName().toInt(); // Récupérer l'ID de l'équipement à partir du nom d'objet du bouton
 		// Appeler la fonction de suppression en passant l'ID de l'équipement à supprimer
-		supprimerEquipement(idEquipement);
+		equipement->supprimerEquipement(idEquipement, this);
 		Gerer_un_equipement();
 	}
 }
@@ -719,56 +528,19 @@ void modulesTestDMXProject::handleModifyButtonClicked(int idEquipement, const QS
 		int nouveauNbCanal = spinBoxNbCanal->value();
 
 		// Appeler la fonction de modification avec les nouvelles valeurs
-		modifierEquipement(idEquipement, nouveauNom, nouvelleAdresse, nouveauNbCanal);
+		equipement->updateEquipement(idEquipement, nouveauNom, nouvelleAdresse, nouveauNbCanal);
 		// Mettre à jour l'affichage des équipements
-		afficherEquipements();
+		equipement->afficherEquipements(ui.verticalLayoutEquipements);
+
 		Gerer_un_equipement();
 
 	}
 }
 
 
-void modulesTestDMXProject::modifierEquipement(int idEquipement, const QString& nomEquipement, const QString& adresseEquipement, int nbCanalEquipement)
-{
-	// Connexion à la base de données
-	QSqlDatabase db = QSqlDatabase::database();
-	if (!db.isValid()) {
-		qDebug() << "La base de données n'est pas valide.";
-		return;
-	}
-
-	if (!db.isOpen()) {
-		qDebug() << "La base de données n'est pas ouverte.";
-		return;
-	}
-
-	// Préparation de la requête SQL pour mettre à jour l'équipement
-	QSqlQuery query(db);
-	query.prepare("UPDATE `equipement` SET `nom` = :nom, `adresse` = :adresse, `nbCanal` = :nbCanal WHERE `id` = :id");
-	query.bindValue(":nom", nomEquipement);
-	query.bindValue(":adresse", adresseEquipement);
-	query.bindValue(":nbCanal", nbCanalEquipement);
-	query.bindValue(":id", idEquipement);
-
-	// Exécution de la requête
-	if (query.exec()) {
-		db.commit(); // Valider les modifications dans la base de données
-		qDebug() << "Équipement mis à jour avec succès dans la base de données.";
-	}
-	else {
-		qDebug() << "Erreur lors de la mise à jour de l'équipement :" << query.lastError().text();
-	}
-}
-
-QListWidget* modulesTestDMXProject::getSceneListWidget() const
-{
-	return ui.listWidget; // Assurez-vous que 'listWidget' est le nom correct du QListWidget dans votre UI
-}
-
-void modulesTestDMXProject::saveSettings()
-{
+void modulesTestDMXProject::saveSettings() {
 	// Récupérer l'ID de la scène sélectionnée
-	int idScene = getSceneId(m_selectedScene);
+	int idScene = scene->getSceneId(m_selectedScene); //getSceneId(m_selectedScene);
 
 	QWizard* wizard = qobject_cast<QWizard*>(sender());
 	if (wizard) {
@@ -793,47 +565,90 @@ void modulesTestDMXProject::saveSettings()
 			}
 
 			// Enregistrer les paramètres de canal pour cet équipement dans la base de données
-			QSqlQuery query;
-			query.prepare("INSERT INTO canaux (idScene, numCanal, valeur) VALUES (:idScene, :numCanal, :valeur)");
-			query.bindValue(":idScene", idScene);
-			for (const auto& channel : channelData)
-			{
-				int numCanal = channel.first;
-				int valeur = channel.second;
-
-				// Vérifier si le numéro de canal existe dans la table champ
-				QSqlQuery checkQuery;
-				checkQuery.prepare("SELECT COUNT(*) FROM champ WHERE idNumCanal = :numCanal");
-				checkQuery.bindValue(":numCanal", numCanal);
-				if (checkQuery.exec() && checkQuery.next()) {
-					int count = checkQuery.value(0).toInt();
-					if (count == 0) {
-						qDebug() << "Le numéro de canal" << numCanal << "n'existe pas dans la table champ.";
-						continue; // Ignorer cette insertion
-					}
-				}
-				else {
-					qDebug() << "Erreur lors de la vérification de l'existence du numéro de canal" << numCanal << ":" << checkQuery.lastError().text();
-					continue; // Ignorer cette insertion
-				}
-
-				// Mettre à jour la valeur du QSpinBox correspondant à ce numéro de canal
-				QSpinBox* spinBox = page->findChild<QSpinBox*>(QString("spinBox_%1").arg(numCanal));
-				if (spinBox) {
-					spinBox->setValue(valeur);
-				}
-
-				query.bindValue(":numCanal", numCanal);
-				query.bindValue(":valeur", valeur);
-
-				if (!query.exec())
-				{
-					qDebug() << "Erreur lors de l'insertion des données dans la table 'canaux' : " << query.lastError().text();
-				}
-			}
+			canal->insertCanal(idScene, channelData);
 		}
 	}
 
 	// Fermer le QWizard
 	qobject_cast<QWizard*>(sender())->close();
+}
+
+void modulesTestDMXProject::sendDMXFrame()
+{
+	// Récupérer l'ID de la scène sélectionnée dans votre interface utilisateur
+	int sceneId = 5; //ui->sceneComboBox->currentData().toInt()
+
+	// Récupérer les valeurs des canaux correspondants dans votre base de données
+	QSqlQuery query;
+	query.prepare("SELECT numCanal, valeur FROM canaux WHERE idScene = :sceneId");
+	query.bindValue(":sceneId", sceneId);
+	query.exec();
+
+	// Construire la trame DMX
+	QByteArray dmxFrame(512, 0);
+	while (query.next()) {
+		int numCanal = query.value(0).toInt();
+		int valeur = query.value(1).toInt();
+		dmxFrame[numCanal - 1] = valeur;
+	}
+
+	// Envoyer la trame DMX à votre serveur Linux en utilisant une connexion TCP
+	QTcpSocket socket;
+	socket.connectToHost("192.168.64.170", 12345); // Remplacez par l'adresse IP et le port de votre serveur Linux
+	if (socket.waitForConnected()) {
+		socket.write(dmxFrame);
+		socket.waitForBytesWritten();
+		socket.disconnectFromHost();
+	}
+	else {
+		qDebug() << "Erreur : impossible de se connecter au serveur.";
+	}
+}
+
+void modulesTestDMXProject::fillSceneComboBox()
+{
+	QSqlQuery query;
+	query.prepare("SELECT nom FROM scene");
+	query.exec();
+
+	while (query.next()) {
+		ui.sceneComboBox->addItem(query.value(0).toString());
+	}
+}
+
+void modulesTestDMXProject::testScene()
+{
+	// Récupérer le nom de la scène sélectionnée dans le QComboBox
+	QString sceneName = ui.sceneComboBox->currentText();
+
+	// Sélectionner les valeurs des canaux correspondant à la scène sélectionnée dans la base de données
+	QSqlQuery query;
+	query.prepare("SELECT numCanal, valeur FROM canaux WHERE idScene = (SELECT id FROM scene WHERE nom = :sceneName)");
+	query.bindValue(":sceneName", sceneName);
+	query.exec();
+
+	// Construire la trame DMX
+	// Construire la trame DMX
+	QByteArray dmxFrame(512, 0);
+	while (query.next()) {
+		int numCanal = query.value(0).toInt();
+		int valeur = query.value(1).toInt();
+		dmxFrame[numCanal - 1] = valeur;
+	}
+
+	// Afficher les données de la trame DMX dans la console de débogage
+	qDebug() << "Trame DMX :" << dmxFrame.toHex(' ');
+
+	// Envoyer la trame DMX au serveur Linux en utilisant une connexion TCP
+	QTcpSocket socket;
+	socket.connectToHost("192.168.64.170", 12345); // Remplacez par l'adresse IP et le port de votre serveur Linux
+	if (socket.waitForConnected()) {
+		socket.write(dmxFrame);
+		socket.waitForBytesWritten();
+		socket.disconnectFromHost();
+	}
+	else {
+		qDebug() << "Erreur : impossible de se connecter au serveur.";
+	}
+
 }

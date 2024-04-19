@@ -38,7 +38,7 @@
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="QtSettings">
     <QtInstall>5.14.2_msvc2017_64</QtInstall>
-    <QtModules>core;gui;widgets;sql;testlib</QtModules>
+    <QtModules>core;gui;widgets;sql;testlib;network</QtModules>
     <QtBuildConfig>debug</QtBuildConfig>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="QtSettings">
@@ -89,6 +89,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Canal.cpp" />
+    <ClCompile Include="Champ.cpp" />
+    <ClCompile Include="Equipement.cpp" />
+    <ClCompile Include="Scene.cpp" />
     <ClCompile Include="TestModulesDMXProject.cpp" />
     <QtRcc Include="modulesTestDMXProject.qrc" />
     <QtUic Include="modulesTestDMXProject.ui" />
@@ -98,6 +102,14 @@
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="TestModulesDMXProject.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="Canal.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Champ.h" />
+    <ClInclude Include="Equipement.h" />
+    <ClInclude Include="Scene.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">

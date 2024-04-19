@@ -18,7 +18,7 @@
     <item>
      <widget class="QStackedWidget" name="stackedWidget">
       <property name="currentIndex">
-       <number>2</number>
+       <number>6</number>
       </property>
       <widget class="QWidget" name="page_3">
        <widget class="QWidget" name="formLayoutWidget">
@@ -352,6 +352,44 @@
         <layout class="QVBoxLayout" name="verticalLayout_3"/>
        </widget>
       </widget>
+      <widget class="QWidget" name="page_7">
+       <widget class="QComboBox" name="sceneComboBox">
+        <property name="geometry">
+         <rect>
+          <x>70</x>
+          <y>290</y>
+          <width>171</width>
+          <height>31</height>
+         </rect>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label_7">
+        <property name="geometry">
+         <rect>
+          <x>70</x>
+          <y>260</y>
+          <width>161</width>
+          <height>16</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Choisir une scene a tester : </string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="testSceneButton">
+        <property name="geometry">
+         <rect>
+          <x>330</x>
+          <y>290</y>
+          <width>93</width>
+          <height>28</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Tester la scene</string>
+        </property>
+       </widget>
+      </widget>
      </widget>
     </item>
    </layout>
@@ -373,6 +411,7 @@
     <addaction name="actionSupprimer_un_equipement"/>
     <addaction name="actionCreer_une_sc_ne"/>
     <addaction name="actionConfigurer_une_sc_ne_2"/>
+    <addaction name="actionTester_une_scene"/>
    </widget>
    <addaction name="menuChoisir"/>
   </widget>
@@ -408,8 +447,15 @@
     <string>Supprimer un equipement</string>
    </property>
   </action>
+  <action name="actionTester_une_scene">
+   <property name="text">
+    <string>Tester une scene</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <resources/>
+ <resources>
+  <include location="modulesTestDMXProject.qrc"/>
+ </resources>
  <connections/>
 </ui>
