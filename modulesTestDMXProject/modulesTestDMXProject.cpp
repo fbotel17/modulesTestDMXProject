@@ -8,7 +8,7 @@
 #include <QSpinBox>
 #include <QPushButton>
 #include <QVBoxLayout>
-#include <QListWidgetItem> // Ajoutez cette ligne
+#include <QListWidgetItem>
 #include <QScrollArea>
 #include <QStringList>
 #include <QTableWidgetItem>
@@ -16,12 +16,17 @@
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QWizard>
+#include <QDialog>
+#include <QFormLayout>
+#include <QDialogButtonBox>
+#include <QSqlQuery>
+#include <QPixmap>
 
 
-modulesTestDMXProject::modulesTestDMXProject(QWidget* parent)
-	: QMainWindow(parent)
-{
+modulesTestDMXProject::modulesTestDMXProject(QWidget* parent) : QMainWindow(parent) {
 	ui.setupUi(this);
+
+	// Connexion à la base de données MySQL
 	QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL");
 	db.setHostName("192.168.64.213");
 	db.setDatabaseName("testCodeDMX");
@@ -30,30 +35,70 @@ modulesTestDMXProject::modulesTestDMXProject(QWidget* parent)
 
 	if (!db.open()) {
 		qDebug() << "Échec de la connexion à la base de données.";
-		// Gérer les erreurs de connexion
 		return;
 	}
 
+	consoleMaterielle = new ConsoleMaterielle(ui.verticalSlider, this);
+
+	// Connexion au serveur TCP
 	QTcpSocket* socket = new QTcpSocket(this);
-	socket->connectToHost("192.168.64.170", 12345); // Remplacez 1234 par le numéro de port de votre serveur
+	socket->connectToHost("192.168.64.170", 12345);
 
+	// Connexion à l'Arduino
+	consoleController = new ConsoleController(this);
+	if (!consoleController->connectToArduino("COM8")) {
+		qDebug() << "Échec de la connexion à l'Arduino.";
+	}
 
+	// Connecter les signaux de ConsoleController aux slots de modulesTestDMXProject
+	
+	
 
-	in.setDevice(tcpSocket);
-	out.setDevice(tcpSocket);
-	out.setVersion(QDataStream::Qt_5_0);
 
 
 	// Afficher toutes les scènes existantes
-	scene->afficherScenes(ui.listWidget);
+	Scene scene;
+	QList<Scene> scenes = scene.getAllScenes();
+	foreach(const Scene & s, scenes) {
+		ui.listWidget->addItem(s.getNom());
+	}
+
+	// Afficher les équipements
 	equipement->afficherEquipements(ui.verticalLayoutEquipements);
 
 	afficherScenesCheckbox();
 	Gerer_un_equipement();
-	fillSceneComboBox();
+	fillSceneComboBox2();
+	fillEquipComboBox();
+	validateSceneEquipment();
 
 	connect(ui.testSceneButton, &QPushButton::clicked, this, &modulesTestDMXProject::testScene);
 
+	// Envoyer les noms des scènes à l'Arduino
+	QStringList sceneNames;
+	foreach(const Scene & s, scenes) {
+		sceneNames.append(s.getNom());
+	}
+	consoleController->sendSceneNames(sceneNames);
+
+	int nouvelleLargeur = 400; // Par exemple, vous pouvez définir la largeur souhaitée
+	int nouvelleHauteur = 300; // Par exemple, vous pouvez définir la hauteur souhaitée
+
+	// Insérer une image dans le label_10
+	QString path = QDir::currentPath() + "/image/page.png";
+	QPixmap image(path);
+
+	// Redimensionner l'image avec les nouvelles dimensions
+	image = image.scaled(nouvelleLargeur, nouvelleHauteur, Qt::KeepAspectRatio); // Redimensionner l'image avec les dimensions spécifiées
+
+	// Redimensionner le QLabel pour qu'il puisse afficher l'image entière
+	ui.label_10->resize(image.size());
+
+	// Afficher l'image dans le QLabel
+	ui.label_10->setPixmap(image);
+
+	// Mettre à jour le layout si nécessaire
+	ui.label_10->updateGeometry();
 }
 
 modulesTestDMXProject::~modulesTestDMXProject()
@@ -72,7 +117,20 @@ void modulesTestDMXProject::sendData(const QByteArray& data)
 	// Traiter la réponse du serveur
 }
 
+void modulesTestDMXProject::sendSceneNamesToArduino(const QStringList& scenes)
+{
+	if (!consoleController->isConnected()) {
+		qDebug() << "Not connected to Arduino";
+		return;
+	}
 
+	foreach(const QString & scene, scenes) {
+		QByteArray data = scene.toUtf8() + "\n";
+		qDebug() << "Sending scene:" << scene;
+		consoleController->sendData(data);
+		// Ajout d'un délai pour s'assurer que chaque ligne est bien envoyée
+	}
+}
 
 void modulesTestDMXProject::on_pushButtonValider_clicked()
 {
@@ -118,6 +176,11 @@ void modulesTestDMXProject::on_actionTester_une_scene_triggered()
 	ui.stackedWidget->setCurrentIndex(6);
 }
 
+void modulesTestDMXProject::on_actionArduino_triggered()
+{
+	ui.stackedWidget->setCurrentIndex(8);
+}
+
 
 // Modifiez votre slot on_buttonEquip_clicked pour appeler cette fonction
 void modulesTestDMXProject::on_buttonEquip_clicked() {
@@ -134,41 +197,40 @@ void modulesTestDMXProject::on_buttonEquip_clicked() {
 void modulesTestDMXProject::afficherScenesCheckbox()
 {
 
-
 	// Exécuter une requête pour récupérer tous les équipements existants
 	QSqlQuery query("SELECT nom FROM scene");
 
 	// Créer un widget de défilement pour contenir le layout des scènes
-	QScrollArea* scrollArea = new QScrollArea;
-	QWidget* scrollWidget = new QWidget;
-	QVBoxLayout* layoutScenes = new QVBoxLayout(scrollWidget);
+	QScrollArea *scrollArea = new QScrollArea;
+	QWidget *scrollWidget = new QWidget;
+	QVBoxLayout *layoutScenes = new QVBoxLayout(scrollWidget);
 	scrollWidget->setLayout(layoutScenes);
 	scrollArea->setWidget(scrollWidget);
 	scrollArea->setWidgetResizable(true);
 
 	// Récupérer le layout pour les scènes
-	QVBoxLayout* mainLayout = qobject_cast<QVBoxLayout*>(ui.verticalLayoutScenes->layout());
+	QVBoxLayout *mainLayout = qobject_cast<QVBoxLayout*>(ui.verticalLayoutScenes->layout());
 	if (!mainLayout) {
 		qDebug() << "Erreur : le layout des scènes est invalide.";
 		return;
 	}
 
 	// Effacer le contenu existant du layout principal
-	QLayoutItem* child;
+	QLayoutItem *child;
 	while ((child = mainLayout->takeAt(0)) != nullptr) {
 		delete child->widget();
 		delete child;
 	}
 
 	// Garder une liste de toutes les cases à cocher
-	QList<QCheckBox*> checkBoxes;
+	QList<QCheckBox *> checkBoxes;
 
 	// Parcourir les résultats de la requête et ajouter chaque scène en tant que case à cocher
 	while (query.next()) {
 		QString nomScene = query.value(0).toString();
 
 		// Créer une case à cocher pour la scène
-		QCheckBox* checkBox = new QCheckBox(nomScene);
+		QCheckBox *checkBox = new QCheckBox(nomScene);
 		// Ajouter la case à cocher au layout des scènes
 		layoutScenes->addWidget(checkBox);
 		checkBoxes.append(checkBox); // Ajouter la case à cocher à la liste
@@ -181,17 +243,17 @@ void modulesTestDMXProject::afficherScenesCheckbox()
 	mainLayout->addWidget(scrollArea);
 
 	// Connecter le signal toggled() de chaque case à cocher à une fonction de gestion
-	for (QCheckBox* checkBox : checkBoxes) {
+	for (QCheckBox *checkBox : checkBoxes) {
 		connect(checkBox, &QCheckBox::toggled, [this, checkBoxes, checkBox](bool checked) {
 			if (checked) {
 				// Désélectionner toutes les autres cases à cocher sauf celle qui vient d'être cochée
-				for (QCheckBox* otherCheckBox : checkBoxes) {
+				for (QCheckBox *otherCheckBox : checkBoxes) {
 					if (otherCheckBox != checkBox) {
 						otherCheckBox->setChecked(false);
 					}
 				}
 			}
-			});
+		});
 	}
 }
 
@@ -231,9 +293,9 @@ void modulesTestDMXProject::on_validateButtonEquip_clicked() {
 	int idNumCanal = ui.adresseEquipEdit->text().toInt();
 
 	// Parcourir tous les QLineEdit et insérer les données dans la table "champ"
-	QLayoutItem* child;
+	QLayoutItem *child;
 	while ((child = ui.verticalLayout_17->takeAt(0)) != nullptr) {
-		QLineEdit* lineEdit = dynamic_cast<QLineEdit*>(child->widget());
+		QLineEdit *lineEdit = dynamic_cast<QLineEdit*>(child->widget());
 		if (lineEdit) {
 			QString nom = lineEdit->text();
 			champ->insertChamp(idEquip, idNumCanal, nom);
@@ -252,8 +314,8 @@ void modulesTestDMXProject::on_pushButton_clicked()
 	qDebug() << "Number of children in verticalLayoutEquipements:" << ui.verticalLayoutEquipements->count();
 
 	// Find the widgetEquipements and widgetScenes widgets
-	QWidget* widgetEquipements = ui.verticalLayoutEquipements->itemAt(0)->widget();
-	QWidget* widgetScenes = ui.verticalLayoutScenes->itemAt(0)->widget();
+	QWidget *widgetEquipements = ui.verticalLayoutEquipements->itemAt(0)->widget();
+	QWidget *widgetScenes = ui.verticalLayoutScenes->itemAt(0)->widget();
 
 	// Récupérer les équipements sélectionnés
 	QList<QCheckBox*> checkedEquipements = widgetEquipements->findChildren<QCheckBox*>();
@@ -324,12 +386,57 @@ void modulesTestDMXProject::createFormForSelectedEquipements(const QList<QString
 {
 	clearForm();
 
+	// Récupérer l'ID de la scène sélectionnée
+	QSqlQuery sceneQuery;
+	sceneQuery.prepare("SELECT id FROM scene WHERE nom = :nom");
+	sceneQuery.bindValue(":nom", selectedScene);
+	if (!sceneQuery.exec() || !sceneQuery.next()) {
+		qDebug() << "Erreur lors de l'exécution de la requête sceneQuery:" << sceneQuery.lastError().text();
+		ui.stackedWidget->setCurrentIndex(1); // Rediriger en cas d'erreur
+		return;
+	}
+	int idScene = sceneQuery.value(0).toInt();
+
+	// Vérifier si des canaux existent déjà pour cette scène
+	QSqlQuery checkCanauxQuery;
+	checkCanauxQuery.prepare("SELECT COUNT(*) FROM canaux WHERE idScene = :idScene");
+	checkCanauxQuery.bindValue(":idScene", idScene);
+	if (!checkCanauxQuery.exec() || !checkCanauxQuery.next()) {
+		qDebug() << "Erreur lors de l'exécution de la requête checkCanauxQuery:" << checkCanauxQuery.lastError().text();
+		ui.stackedWidget->setCurrentIndex(1); // Rediriger en cas d'erreur
+		return;
+	}
+	int countCanaux = checkCanauxQuery.value(0).toInt();
+
+	// Si des canaux existent déjà, demander confirmation à l'utilisateur
+	if (countCanaux > 0) {
+		QMessageBox msgBox;
+		msgBox.setText("La scène sélectionnée possède déjà une configuration. Voulez-vous la supprimer ?");
+		msgBox.setStandardButtons(QMessageBox::Cancel | QMessageBox::Ok);
+		int ret = msgBox.exec();
+		if (ret == QMessageBox::Ok) {
+			// Supprimer les canaux existants
+			QSqlQuery deleteQuery;
+			deleteQuery.prepare("DELETE FROM canaux WHERE idScene = :idScene");
+			deleteQuery.bindValue(":idScene", idScene);
+			if (!deleteQuery.exec()) {
+				qDebug() << "Erreur lors de l'exécution de la requête deleteQuery:" << deleteQuery.lastError().text();
+				ui.stackedWidget->setCurrentIndex(1); // Rediriger en cas d'erreur
+				return;
+			}
+		}
+		else {
+			// Annuler l'opération
+			ui.stackedWidget->setCurrentIndex(1); // Rediriger après annulation
+			return;
+		}
+	}
+
 	// Créer un QWizard pour configurer les canaux de chaque équipement dans la scène
 	QWizard* wizard = new QWizard(this);
 
 	// Créer une page pour chaque équipement sélectionné
-	for (const QString& equipementName : selectedEquipements)
-	{
+	for (const QString& equipementName : selectedEquipements) {
 		QWizardPage* page = new QWizardPage(this);
 		QVBoxLayout* layout = new QVBoxLayout(page);
 		layout->addWidget(new QLabel(QString("Configurer les canaux pour %1 :").arg(equipementName), page));
@@ -339,8 +446,7 @@ void modulesTestDMXProject::createFormForSelectedEquipements(const QList<QString
 
 		// Ajouter des widgets pour chaque canal de cet équipement
 		QList<QPair<int, int>> channelData; // Ajouter une liste de paires pour stocker les valeurs des QSpinBox
-		while (query.next())
-		{
+		while (query.next()) {
 			QString canalName = query.value(1).toString();
 			int canalNumber = query.value(0).toInt();
 			QLabel* label = new QLabel(QString("%1 :").arg(canalName), page);
@@ -361,17 +467,30 @@ void modulesTestDMXProject::createFormForSelectedEquipements(const QList<QString
 	}
 
 	// Connecter le signal accepted() du QWizard à un slot pour enregistrer les paramètres de canal dans la base de données
-	connect(wizard, SIGNAL(accepted()), this, SLOT(saveSettings()));
+	connect(wizard, &QWizard::accepted, this, &modulesTestDMXProject::saveSettings);
+
+	// Connecter les signaux finished et rejected pour gérer la redirection
+	connect(wizard, &QWizard::rejected, [this, wizard]() {
+		ui.stackedWidget->setCurrentIndex(1);
+		wizard->deleteLater();
+	});
+	connect(wizard, &QWizard::finished, [this, wizard]() {
+		ui.stackedWidget->setCurrentIndex(1);
+		wizard->deleteLater();
+	});
 
 	// Afficher le QWizard
 	wizard->show();
 }
 
 
+
+
+
 void modulesTestDMXProject::clearForm()
 {
 	// Effacer le layout existant
-	QLayoutItem* child;
+	QLayoutItem *child;
 	while ((child = ui.verticalLayout_17->takeAt(0)) != nullptr)
 	{
 		delete child->widget();
@@ -383,14 +502,11 @@ void modulesTestDMXProject::clearForm()
 }
 
 
-// Mettre à jour la méthode Supprimer_un_equipement pour utiliser la variable membre m_idEquipementASupprimer
 void modulesTestDMXProject::Gerer_un_equipement()
 {
-	// Vérifier si un équipement doit être supprimé
-
-		// Effacer tous les widgets précédents du layout
 	QLayoutItem* child;
 
+	// Supprimer tous les widgets existants dans le layout
 	while ((child = ui.verticalLayout_3->takeAt(0)) != nullptr)
 	{
 		delete child->widget();
@@ -399,6 +515,26 @@ void modulesTestDMXProject::Gerer_un_equipement()
 
 	// Vider la liste des pointeurs de QLineEdit
 	m_lineEdits.clear();
+
+	// Créer un QLabel avec du texte en grand au milieu
+	QLabel* gererEquipementLabel = new QLabel("Gerer un equipement");
+	gererEquipementLabel->setAlignment(Qt::AlignCenter);
+	QFont font = gererEquipementLabel->font();
+	font.setPointSize(24); // Définir la taille de la police
+	gererEquipementLabel->setFont(font);
+
+	// Utiliser un QHBoxLayout pour centrer le QLabel horizontalement
+	QHBoxLayout* labelLayout = new QHBoxLayout;
+	labelLayout->addWidget(gererEquipementLabel);
+	ui.verticalLayout_3->addLayout(labelLayout);
+
+	// Créer un bouton "Nouvel équipement" plus petit mais plus épais
+	QPushButton* newEquipmentButton = new QPushButton("Nouvel equipement");
+	newEquipmentButton->setFixedSize(150, 50); // Définir une taille fixe pour le bouton
+	newEquipmentButton->setStyleSheet("QPushButton { padding: 10px; font-weight: bold; }"); // Définir du padding et un texte en gras
+
+	QObject::connect(newEquipmentButton, &QPushButton::clicked, this, &modulesTestDMXProject::handleNewEquipmentButtonClicked);
+	ui.verticalLayout_3->addWidget(newEquipmentButton);
 
 	// Créer un nouveau QTableView
 	QTableView* tableView = new QTableView;
@@ -412,7 +548,7 @@ void modulesTestDMXProject::Gerer_un_equipement()
 	tableView->setModel(model);
 
 	// Définir les en-têtes de colonne
-	model->setHorizontalHeaderLabels(QStringList() << "Nom de l'équipement" << "Adresse" << "Nombre de Canal" << "Modifier" << "Supprimer");
+	model->setHorizontalHeaderLabels(QStringList() << "Nom de l'equipement" << "Adresse" << "Nombre de Canal" << "Modifier" << "Supprimer");
 
 	// Exécuter une requête pour récupérer tous les équipements existants
 	QSqlQuery query("SELECT id, nom, adresse, nbCanal FROM equipement");
@@ -441,7 +577,7 @@ void modulesTestDMXProject::Gerer_un_equipement()
 		QPushButton* modifyButton = new QPushButton("Modifier");
 		QObject::connect(modifyButton, &QPushButton::clicked, this, [this, currentIdEquipement, nomEquipement, adresseEquipement, nbCanalEquipement]() {
 			handleModifyButtonClicked(currentIdEquipement, nomEquipement, adresseEquipement, nbCanalEquipement);
-			}); // Connecter le signal clicked du bouton à une lambda fonction
+		}); // Connecter le signal clicked du bouton à une lambda fonction
 		model->setItem(row, 3, new QStandardItem(""));
 		tableView->setIndexWidget(model->index(row, 3), modifyButton);
 
@@ -474,8 +610,116 @@ void modulesTestDMXProject::Gerer_un_equipement()
 
 	// Réinitialiser l'ID de l'équipement à supprimer
 	m_idEquipementASupprimer = -1;
-
 }
+
+
+void modulesTestDMXProject::handleNewEquipmentButtonClicked()
+{
+	// Logique pour ajouter un nouvel équipement
+	QDialog dialog(this);
+	dialog.setWindowTitle("Ajouter un nouvel equipement");
+
+	QFormLayout form(&dialog);
+
+	// Ajout des champs d'entrée
+	QLineEdit* nomEdit = new QLineEdit(&dialog);
+	form.addRow("Nom de l'equipement:", nomEdit);
+
+	QLineEdit* adresseEdit = new QLineEdit(&dialog);
+	form.addRow("Adresse:", adresseEdit);
+
+	QLineEdit* canauxEdit = new QLineEdit(&dialog);
+	form.addRow("Nombre de canaux:", canauxEdit);
+
+	// Ajout des boutons
+	QDialogButtonBox buttonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dialog);
+	form.addRow(&buttonBox);
+
+	// Connexion des boutons
+	QObject::connect(&buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+	QObject::connect(&buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+	// Afficher la boîte de dialogue
+	if (dialog.exec() == QDialog::Accepted) {
+		QString nom = nomEdit->text();
+		QString adresse = adresseEdit->text();
+		int canaux = canauxEdit->text().toInt();
+
+		// Ajouter l'équipement à la base de données
+		QSqlQuery query;
+		query.prepare("INSERT INTO equipement (nom, adresse, nbCanal) VALUES (?, ?, ?)");
+		query.addBindValue(nom);
+		query.addBindValue(adresse);
+		query.addBindValue(canaux);
+
+		if (query.exec()) {
+			// Réafficher la liste des équipements
+			Gerer_un_equipement();
+
+			// Créer une nouvelle fenêtre pour les étiquettes de canal et les champs de texte associés
+			QDialog channelDialog(this);
+			channelDialog.setWindowTitle("Noms des canaux");
+
+			QVBoxLayout channelLayout(&channelDialog);
+
+			// Récupérer la valeur de l'adresse pour l'incrémentation
+			int adresseInt = adresse.toInt();
+
+			// Affichez les QLabel et les QLineEdit pour chaque canal
+			QVector<QLineEdit*> channelLineEditVector;
+			for (int i = 0; i < canaux; ++i) {
+				QLabel* label = new QLabel("Nom du canal " + QString::number(adresseInt + i) + " :");
+				QLineEdit* lineEdit = new QLineEdit(&channelDialog);
+				channelLayout.addWidget(label);
+				channelLayout.addWidget(lineEdit);
+				channelLineEditVector.append(lineEdit);
+			}
+
+			// Ajouter les boutons OK et Annuler à la fenêtre des canaux
+			QDialogButtonBox channelButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &channelDialog);
+			channelLayout.addWidget(&channelButtonBox);
+
+			// Connexion des boutons
+			QObject::connect(&channelButtonBox, &QDialogButtonBox::accepted, [&]() {
+				// Insérer les noms des canaux dans la base de données
+				QSqlQuery channelQuery;
+
+				// Préparer la requête pour l'insertion des noms des canaux
+				channelQuery.prepare("INSERT INTO champ (idEquip, idNumCanal, nom) VALUES (:idEquip, :idNumCanal, :nom)");
+
+				// Récupérer l'ID de l'équipement inséré
+				int idEquip = query.lastInsertId().toInt();
+
+				// Parcourir les noms des canaux et les insérer dans la base de données
+				for (int i = 0; i < canaux; ++i) {
+					QString channelName = channelLineEditVector[i]->text();
+
+					channelQuery.bindValue(":idEquip", idEquip);
+					channelQuery.bindValue(":idNumCanal", adresseInt + i); // Identifiant numérique du canal
+					channelQuery.bindValue(":nom", channelName);
+
+					if (!channelQuery.exec()) {
+						qDebug() << "Erreur lors de l'insertion des données dans la table champ:" << channelQuery.lastError().text();
+						QMessageBox::warning(this, "Erreur", "Échec de l'ajout des noms des canaux à la base de données: " + channelQuery.lastError().text());
+						break;
+					}
+				}
+
+				// Fermer la fenêtre des canaux une fois que l'insertion est terminée
+				channelDialog.accept();
+			});
+
+			QObject::connect(&channelButtonBox, &QDialogButtonBox::rejected, &channelDialog, &QDialog::reject);
+
+			// Afficher la fenêtre des canaux
+			channelDialog.exec();
+		}
+		else {
+			QMessageBox::warning(this, "Erreur", "Échec de l'ajout de l'équipement à la base de données.");
+		}
+	}
+}
+
 
 
 void modulesTestDMXProject::handleDeleteButtonClicked()
@@ -621,34 +865,133 @@ void modulesTestDMXProject::testScene()
 	// Récupérer le nom de la scène sélectionnée dans le QComboBox
 	QString sceneName = ui.sceneComboBox->currentText();
 
-	// Sélectionner les valeurs des canaux correspondant à la scène sélectionnée dans la base de données
+	// Sélectionner l'ID de la scène correspondant au nom sélectionné dans la base de données
 	QSqlQuery query;
-	query.prepare("SELECT numCanal, valeur FROM canaux WHERE idScene = (SELECT id FROM scene WHERE nom = :sceneName)");
+	query.prepare("SELECT id FROM scene WHERE nom = :sceneName");
 	query.bindValue(":sceneName", sceneName);
 	query.exec();
 
-	// Construire la trame DMX
-	// Construire la trame DMX
-	QByteArray dmxFrame(512, 0);
-	while (query.next()) {
-		int numCanal = query.value(0).toInt();
-		int valeur = query.value(1).toInt();
-		dmxFrame[numCanal - 1] = valeur;
+	int sceneId = -1;
+	if (query.next()) {
+		sceneId = query.value(0).toInt();
 	}
 
-	// Afficher les données de la trame DMX dans la console de débogage
-	qDebug() << "Trame DMX :" << dmxFrame.toHex(' ');
+	if (sceneId != -1) {
+		// Convertir l'ID de la scène en QByteArray
+		QByteArray sceneIdData = QByteArray::number(sceneId);
 
-	// Envoyer la trame DMX au serveur Linux en utilisant une connexion TCP
-	QTcpSocket socket;
-	socket.connectToHost("192.168.64.170", 12345); // Remplacez par l'adresse IP et le port de votre serveur Linux
-	if (socket.waitForConnected()) {
-		socket.write(dmxFrame);
-		socket.waitForBytesWritten();
-		socket.disconnectFromHost();
+		// Envoyer l'ID de la scène au serveur Linux en utilisant une connexion TCP
+		QTcpSocket socket;
+		socket.connectToHost("192.168.64.170", 12345); // Remplacez par l'adresse IP et le port de votre serveur Linux
+		if (socket.waitForConnected()) {
+			socket.write(sceneIdData);
+			socket.waitForBytesWritten();
+			socket.disconnectFromHost();
+		}
+		else {
+			qDebug() << "Erreur : impossible de se connecter au serveur.";
+		}
 	}
 	else {
-		qDebug() << "Erreur : impossible de se connecter au serveur.";
+		qDebug() << "Erreur : scène non trouvée.";
+	}
+}
+
+
+void afficherEmplacementsLibresDansTrame() {
+	// Connexion à la base de données et récupération des adresses et du nombre de canaux de chaque équipement
+	QSqlQuery query("SELECT adresse, nbCanal FROM equipement ORDER BY adresse ASC;");
+
+	// Structure de données pour stocker les emplacements des équipements dans la trame
+	std::map<int, int> emplacements;
+
+	// Assignation des emplacements pour chaque équipement
+	while (query.next()) {
+		int adresse = query.value(0).toInt();
+		int nbCanal = query.value(1).toInt();
+		int emplacement = adresse + nbCanal; // Calcul de l'emplacement dans la trame
+		emplacements[emplacement] = nbCanal; // Stockage de l'emplacement dans la map
 	}
 
+	// Calcul des emplacements libres dans la trame
+	int dernierEmplacementUtilise = 0;
+	int nombreEmplacementsLibres = 0;
+	for (const auto& pair : emplacements) {
+		if (pair.first > dernierEmplacementUtilise) {
+			nombreEmplacementsLibres += pair.first - dernierEmplacementUtilise;
+		}
+		dernierEmplacementUtilise = pair.first + pair.second;
+	}
+	nombreEmplacementsLibres += 255 - dernierEmplacementUtilise;
+
+	// Affichage des emplacements libres dans une boîte de dialogue
+	QMessageBox::information(nullptr, "Emplacements libres dans la trame",
+		QString("Nombre d'emplacements libres dans la trame : %1").arg(nombreEmplacementsLibres));
+}
+
+void modulesTestDMXProject::fillSceneComboBox2() {
+	Scene scene;
+	QList<Scene> scenes = scene.getAllScenes();
+	foreach(const Scene & s, scenes) {
+		ui.SceneComboBox->addItem(s.getNom());
+	}
+}
+
+
+void modulesTestDMXProject::fillEquipComboBox() {
+	Equipement equip;
+	QList<Equipement> equips = equip.getAllEquipements();
+	foreach(const Equipement & e, equips) {
+		ui.EquipComboBox->addItem(e.getNom());
+	}
+}
+
+
+void modulesTestDMXProject::validateSceneEquipment()
+{
+	int sceneIndex = ui.SceneComboBox->currentIndex();
+	int equipIndex = ui.EquipComboBox->currentIndex();
+
+	if (sceneIndex != -1 && equipIndex != -1) {
+		showEquipmentFields(equipIndex);
+	}
+}
+
+void modulesTestDMXProject::updateSliderValue(int value)
+{
+	ui.verticalSlider->setValue(value);
+
+	if (currentFieldIndex < sliderValues.size()) {
+		sliderValues[currentFieldIndex] = value;
+	}
+	else {
+		sliderValues.append(value);
+	}
+}
+
+void modulesTestDMXProject::showEquipmentFields(int equipIndex)
+{
+	// Logique pour afficher les champs de l'équipement
+	qDebug() << "Showing fields for equipment at index:" << equipIndex;
+
+	// Réinitialiser l'index de champ actuel et les valeurs des sliders
+	currentFieldIndex = 0;
+	sliderValues.clear();
+}
+
+void modulesTestDMXProject::onConfirmButtonPressed()
+{
+	// Enregistrer la valeur actuelle et passer au champ suivant
+	int value = ui.verticalSlider->value();
+	if (currentFieldIndex < sliderValues.size()) {
+		sliderValues[currentFieldIndex] = value;
+	}
+	else {
+		sliderValues.append(value);
+	}
+
+	currentFieldIndex++;
+	qDebug() << "Current field index:" << currentFieldIndex << "Slider values:" << sliderValues;
+
+	// Logique pour gérer l'affichage du champ suivant
 }

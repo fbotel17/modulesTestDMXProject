@@ -1,6 +1,8 @@
 #pragma once
 #include <QObject>
 #include "modulesTestDMXProject.h"
+#include <QTcpSocket>
+#include <QDataStream>
 #include "Scene.h"
 #include <QtTest/QTest>
 
@@ -19,6 +21,7 @@ private slots:
 
     void testUpdateScene();
     void deleteScene(const QString& sceneName);
+    void testTcpConnection();
 
 private:
     modulesTestDMXProject* testObject;

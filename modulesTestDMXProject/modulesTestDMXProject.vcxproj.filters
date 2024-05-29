@@ -52,6 +52,12 @@
     <ClCompile Include="Scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ConsoleMaterielle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ConsoleController.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="modulesTestDMXProject.h">
@@ -61,6 +67,12 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="Canal.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="ConsoleMaterielle.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="ConsoleController.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
