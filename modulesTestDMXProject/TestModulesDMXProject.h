@@ -5,6 +5,9 @@
 #include <QDataStream>
 #include "Scene.h"
 #include <QtTest/QTest>
+#include "ConsoleMaterielle.h"
+#include <QSlider>
+
 
 class TestModulesDMXProject : public QObject
 {
@@ -22,9 +25,14 @@ private slots:
     void testUpdateScene();
     void deleteScene(const QString& sceneName);
     void testTcpConnection();
+    void testSliderValue();
+    void testJoystickValue();
+    void testButtonValue();
 
 private:
     modulesTestDMXProject* testObject;
     Scene* scene;
+    QSlider* testSlider;
+    ConsoleMaterielle* consoleMaterielle;
 
 };

@@ -1,3 +1,4 @@
+// ConsoleMaterielle.cpp
 #include "ConsoleMaterielle.h"
 #include <QDebug>
 
@@ -5,6 +6,11 @@ ConsoleMaterielle::ConsoleMaterielle(QSlider* slider, QObject* parent)
     : QObject(parent), slider(slider)
 {
     port = new QSerialPort("COM8", this);
+
+    if (port->isOpen()) {
+        port->close();
+    }
+
     connect(port, &QSerialPort::readyRead, this, &ConsoleMaterielle::onDataReceived);
     port->setBaudRate(9600);
     port->setDataBits(QSerialPort::Data8);
@@ -16,12 +22,30 @@ ConsoleMaterielle::ConsoleMaterielle(QSlider* slider, QObject* parent)
     }
 }
 
+
 ConsoleMaterielle::~ConsoleMaterielle()
 {
     if (port->isOpen()) {
         port->close();
     }
     delete port;
+}
+
+void ConsoleMaterielle::sendCommand(const QByteArray& command)
+{
+    if (port->isOpen()) {
+        port->write(command);
+    }
+}
+
+bool ConsoleMaterielle::isPortOpen() const
+{
+    return port->isOpen();
+}
+
+QSerialPort* ConsoleMaterielle::getPort() const
+{
+    return port;
 }
 
 void ConsoleMaterielle::onDataReceived()
@@ -59,5 +83,3 @@ void ConsoleMaterielle::onDataReceived()
         emit confirmButtonPressed();
     }
 }
-
-

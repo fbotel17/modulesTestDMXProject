@@ -1,9 +1,9 @@
-#pragma once
+#ifndef CONSOLEMATERIELLE_H
+#define CONSOLEMATERIELLE_H
 
 #include <QObject>
 #include <QSerialPort>
 #include <QSlider>
-#include <QDebug>
 
 class ConsoleMaterielle : public QObject
 {
@@ -12,6 +12,9 @@ class ConsoleMaterielle : public QObject
 public:
     ConsoleMaterielle(QSlider* slider, QObject* parent = nullptr);
     ~ConsoleMaterielle();
+    void sendCommand(const QByteArray& command);
+    bool isPortOpen() const;
+    QSerialPort* getPort() const; // Ajoutez cette ligne
 
 signals:
     void channelValueChanged(int value);
@@ -26,3 +29,5 @@ private:
     QSerialPort* port;
     QSlider* slider;
 };
+
+#endif // CONSOLEMATERIELLE_H

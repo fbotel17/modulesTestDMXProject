@@ -7,8 +7,10 @@
 #include <QDebug>
 #include <QString>
 #include <QtTest/QTest>
+#include <QSignalSpy>
 
 TestModulesDMXProject::TestModulesDMXProject()
+    : testSlider(nullptr), consoleMaterielle(nullptr), testObject(nullptr)
 {
 }
 
@@ -18,8 +20,7 @@ TestModulesDMXProject::~TestModulesDMXProject()
 
 void TestModulesDMXProject::initTestCase()
 {
-    // Initialiser la base de données et l'IHM pour les tests
-    QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL", "test_connection"); // Donner un nom unique à la connexion
+    QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL", "test_connection");
     db.setHostName("192.168.64.213");
     db.setDatabaseName("testCodeDMX");
     db.setUserName("root");
@@ -27,20 +28,37 @@ void TestModulesDMXProject::initTestCase()
 
     QVERIFY(db.open());
 
-    // Créer une instance de votre classe principale
     testObject = new modulesTestDMXProject();
     QVERIFY(testObject != nullptr);
 
-    // Afficher la fenêtre principale pour interagir avec l'IHM
     testObject->show();
+
+    testSlider = new QSlider(Qt::Horizontal);
+    consoleMaterielle = new ConsoleMaterielle(testSlider, this);
+
+    connect(consoleMaterielle, &ConsoleMaterielle::channelValueChanged, this, [this](int value) {
+        qDebug() << "Slider value changed:" << value;
+        });
+
+    connect(consoleMaterielle, &ConsoleMaterielle::previousChannel, this, [this]() {
+        qDebug() << "Joystick moved left";
+        });
+
+    connect(consoleMaterielle, &ConsoleMaterielle::nextChannel, this, [this]() {
+        qDebug() << "Joystick moved right";
+        });
+
+    connect(consoleMaterielle, &ConsoleMaterielle::confirmButtonPressed, this, [this]() {
+        qDebug() << "Confirm button pressed";
+        });
 }
 
 void TestModulesDMXProject::cleanupTestCase()
 {
-    // Nettoyer la base de données et fermer l'IHM après les tests
-    QSqlDatabase::database().close();
+    delete testSlider;
+    delete consoleMaterielle;
 
-    // Supprimer l'instance de la classe principale
+    QSqlDatabase::database().close();
     delete testObject;
     testObject = nullptr;
 }
@@ -49,50 +67,43 @@ void TestModulesDMXProject::testInsertScene()
 {
     deleteScene("TestScene");
 
-    // Vérifier si la scène existe déjà dans la base de données
     QSqlQuery query("SELECT * FROM scene WHERE nom = 'TestScene'", QSqlDatabase::database());
     if (query.exec() && query.size() > 0) {
         qDebug() << "La scène 'TestScene' existe déjà dans la base de données.";
-        deleteScene("TestScene"); // Supprimer la scène même si elle existe déjà
+        deleteScene("TestScene");
         return;
     }
 
-    // Appeler la méthode insertScene avec un nom de scène de test
     scene->insertScene("TestScene");
 
-
-    // Vérifier si la scène a été insérée dans la base de données
     query.prepare("SELECT * FROM scene WHERE nom = 'TestScene'");
     QVERIFY(query.exec());
     QCOMPARE(query.size(), 1);
     deleteScene("TestScene");
 }
 
-
-void TestModulesDMXProject::testUpdateScene() {
-
+void TestModulesDMXProject::testUpdateScene()
+{
     deleteScene("TestScene");
 
-    // Ne pas supprimer la scène avant de vérifier si elle existe
     QSqlQuery query("SELECT * FROM scene WHERE nom = 'TestScene'", QSqlDatabase::database());
     if (query.exec() && query.size() > 0) {
         qDebug() << "La scène 'TestScene' existe déjà dans la base de données.";
         return;
     }
 
-    // Appeler la méthode insertScene avec un nom de scène de test
     scene->insertScene("TestScene");
-
     scene->updateScene("TestScene", "NewTestScene");
     qDebug() << "Modification de la scene en BDD";
 
     query.prepare("SELECT * FROM scene WHERE nom = 'NewTestScene'");
     QVERIFY(query.exec());
     QCOMPARE(query.size(), 1);
-    deleteScene("NewTestScene"); // Supprimer la scène mise à jour
+    deleteScene("NewTestScene");
 }
 
-void TestModulesDMXProject::deleteScene(const QString& sceneName) {
+void TestModulesDMXProject::deleteScene(const QString& sceneName)
+{
     QSqlQuery query;
     query.prepare("DELETE FROM scene WHERE nom = :sceneName");
     query.bindValue(":sceneName", sceneName);
@@ -101,11 +112,8 @@ void TestModulesDMXProject::deleteScene(const QString& sceneName) {
 
 void TestModulesDMXProject::testTcpConnection()
 {
-    // Créer un client TCP temporaire pour les tests
     QTcpSocket client;
-
-    // Tenter de se connecter au serveur
-    client.connectToHost("192.168.64.170", 12345); // Remplacez 12345 par le numéro de port de votre serveur
+    client.connectToHost("192.168.64.170", 12345);
     if (client.waitForConnected()) {
         qDebug() << "Connexion au serveur réussie";
     }
@@ -114,7 +122,6 @@ void TestModulesDMXProject::testTcpConnection()
         QFAIL("Échec de la connexion au serveur");
     }
 
-    // Vérifier si la connexion est établie
     if (client.isOpen()) {
         qDebug() << "La connexion est établie";
     }
@@ -124,22 +131,10 @@ void TestModulesDMXProject::testTcpConnection()
     }
 
     QByteArray dmxFrame(512, 0);
-
-    // Remplir la trame DMX avec des valeurs de test (par exemple, canal 1 : 255, canal 2 : 128, canal 3 : 64)
     dmxFrame[3] = 255;
     dmxFrame[4] = 128;
     dmxFrame[5] = 64;
-    dmxFrame[6] = 0;
-    dmxFrame[7] = 20;
-    dmxFrame[8] = 10;
-    dmxFrame[9] = 240;
-    dmxFrame[10] = 0;
-    dmxFrame[11] = 155;
-    dmxFrame[12] = 45;
-    dmxFrame[13] = 0;
-    dmxFrame[14] = 0;
 
-    // Envoyer la trame DMX au serveur
     if (client.isWritable()) {
         qint64 bytesWritten = client.write(dmxFrame);
         if (bytesWritten == dmxFrame.size()) {
@@ -155,10 +150,7 @@ void TestModulesDMXProject::testTcpConnection()
         QFAIL("Le client n'est pas prêt à écrire");
     }
 
-    // Fermer la connexion
     client.disconnectFromHost();
-
-    // Attendre que la déconnexion soit effective uniquement si le socket était connecté
     if (client.state() != QAbstractSocket::UnconnectedState) {
         if (client.waitForDisconnected()) {
             qDebug() << "Déconnexion du serveur réussie";
@@ -170,6 +162,47 @@ void TestModulesDMXProject::testTcpConnection()
     }
 }
 
+void TestModulesDMXProject::testSliderValue()
+{
+    QSignalSpy spy(consoleMaterielle, &ConsoleMaterielle::channelValueChanged);
+    QByteArray command = "READ_SLIDER";
+    consoleMaterielle->getPort()->write(command); // Utilisez getPort()
 
+    QVERIFY(spy.wait(1000));
+    QCOMPARE(spy.count(), 1);
 
+    QList<QVariant> args = spy.takeFirst();
+    int sliderValue = args.at(0).toInt();
+    qDebug() << "Slider value:" << sliderValue;
+}
 
+void TestModulesDMXProject::testJoystickValue()
+{
+    QSignalSpy spyLeft(consoleMaterielle, &ConsoleMaterielle::previousChannel);
+    QSignalSpy spyRight(consoleMaterielle, &ConsoleMaterielle::nextChannel);
+
+    QByteArray command = "READ_JOYSTICK";
+    consoleMaterielle->getPort()->write(command); // Utilisez getPort()
+
+    QVERIFY(spyLeft.wait(1000) || spyRight.wait(1000));
+    if (spyLeft.count() == 1) {
+        qDebug() << "Joystick moved left";
+    }
+    else if (spyRight.count() == 1) {
+        qDebug() << "Joystick moved right";
+    }
+    else {
+        QFAIL("No joystick movement detected");
+    }
+}
+
+void TestModulesDMXProject::testButtonValue()
+{
+    QSignalSpy spy(consoleMaterielle, &ConsoleMaterielle::confirmButtonPressed);
+    QByteArray command = "READ_BUTTON";
+    consoleMaterielle->getPort()->write(command); // Utilisez getPort()
+
+    QVERIFY(spy.wait(1000));
+    QCOMPARE(spy.count(), 1);
+    qDebug() << "Button press detected";
+}
