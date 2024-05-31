@@ -47,7 +47,7 @@ bool ConsoleController::isConnected() const
 
 void ConsoleController::processSerialData() {
     QByteArray data = m_serialPort.readAll();
-    qDebug() << "Received data from Arduino:" << data;
+    //qDebug() << "Received data from Arduino:" << data;
     // Analyser les données sérielles et émettre les signaux correspondants
     // Selon les données reçues, émettre des signaux pour déclencher des actions dans votre application
 }

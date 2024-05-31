@@ -38,7 +38,7 @@ modulesTestDMXProject::modulesTestDMXProject(QWidget* parent) : QMainWindow(pare
 		return;
 	}
 
-	consoleMaterielle = new ConsoleMaterielle(ui.verticalSlider, this);
+	//consoleMaterielle = new ConsoleMaterielle(ui.verticalSlider, this);
 
 	// Connexion au serveur TCP
 	QTcpSocket* socket = new QTcpSocket(this);
@@ -75,11 +75,7 @@ modulesTestDMXProject::modulesTestDMXProject(QWidget* parent) : QMainWindow(pare
 	connect(ui.testSceneButton, &QPushButton::clicked, this, &modulesTestDMXProject::testScene);
 
 	// Envoyer les noms des scènes à l'Arduino
-	QStringList sceneNames;
-	foreach(const Scene & s, scenes) {
-		sceneNames.append(s.getNom());
-	}
-	consoleController->sendSceneNames(sceneNames);
+	
 
 	int nouvelleLargeur = 400; // Par exemple, vous pouvez définir la largeur souhaitée
 	int nouvelleHauteur = 300; // Par exemple, vous pouvez définir la hauteur souhaitée

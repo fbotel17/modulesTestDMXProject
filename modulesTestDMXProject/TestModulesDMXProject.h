@@ -6,6 +6,7 @@
 #include "Scene.h"
 #include <QtTest/QTest>
 #include "ConsoleMaterielle.h"
+#include "ConsoleController.h"
 #include <QSlider>
 
 
@@ -28,11 +29,13 @@ private slots:
     void testSliderValue();
     void testJoystickValue();
     void testButtonValue();
+    void testReceiveSignal();
 
 private:
     modulesTestDMXProject* testObject;
     Scene* scene;
     QSlider* testSlider;
     ConsoleMaterielle* consoleMaterielle;
+    ConsoleController* consoleController;
 
 };

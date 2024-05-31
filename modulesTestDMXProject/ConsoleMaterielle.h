@@ -15,6 +15,7 @@ public:
     void sendCommand(const QByteArray& command);
     bool isPortOpen() const;
     QSerialPort* getPort() const; // Ajoutez cette ligne
+    bool connectToArduino(const QString& portName);
 
 signals:
     void channelValueChanged(int value);
@@ -26,6 +27,7 @@ private slots:
     void onDataReceived();
 
 private:
+    QSerialPort m_serialPort;
     QSerialPort* port;
     QSlider* slider;
 };
