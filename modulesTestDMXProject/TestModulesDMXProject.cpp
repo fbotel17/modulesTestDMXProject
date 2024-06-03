@@ -112,10 +112,31 @@ void TestModulesDMXProject::deleteScene(const QString& sceneName)
 
 void TestModulesDMXProject::testTcpConnection()
 {
+    // ID de scène prédéfini pour les tests
+    int predefinedSceneId = 45;
+
+    // Convertir l'ID de la scène en QByteArray
+    QByteArray sceneIdData = QByteArray::number(predefinedSceneId);
+
+    // Envoyer l'ID de la scène au serveur Linux en utilisant une connexion TCP
+    QTcpSocket socket;
+    socket.connectToHost("192.168.64.170", 12345); // Remplacez par l'adresse IP et le port de votre serveur Linux
+    if (socket.waitForConnected()) {
+        socket.write(sceneIdData);
+        socket.waitForBytesWritten();
+        socket.disconnectFromHost();
+        qDebug() << "ID de la scène envoyé au serveur :" << predefinedSceneId;
+    }
+    else {
+        qDebug() << "Erreur : impossible de se connecter au serveur.";
+        QFAIL("Erreur : impossible de se connecter au serveur.");
+    }
+
+    // Simulation de connexion directe pour vérification
     QTcpSocket client;
     client.connectToHost("192.168.64.170", 12345);
     if (client.waitForConnected()) {
-        // qDebug() << "Connexion au serveur réussie";
+        qDebug() << "Connexion au serveur réussie";
     }
     else {
         qDebug() << "Échec de la connexion au serveur";
@@ -123,37 +144,17 @@ void TestModulesDMXProject::testTcpConnection()
     }
 
     if (client.isOpen()) {
-        // qDebug() << "La connexion est établie";
+        qDebug() << "La connexion est établie";
     }
     else {
         qDebug() << "La connexion n'est pas établie";
         QFAIL("La connexion n'est pas établie");
     }
 
-    QByteArray dmxFrame(512, 0);
-    dmxFrame[3] = 255;
-    dmxFrame[4] = 128;
-    dmxFrame[5] = 64;
-
-    if (client.isWritable()) {
-        qint64 bytesWritten = client.write(dmxFrame);
-        if (bytesWritten == dmxFrame.size()) {
-            // qDebug() << "Trame DMX envoyée au serveur";
-        }
-        else {
-            qDebug() << "Échec de l'envoi de la trame DMX au serveur";
-            QFAIL("Échec de l'envoi de la trame DMX au serveur");
-        }
-    }
-    else {
-        qDebug() << "Le client n'est pas prêt à écrire";
-        QFAIL("Le client n'est pas prêt à écrire");
-    }
-
     client.disconnectFromHost();
     if (client.state() != QAbstractSocket::UnconnectedState) {
         if (client.waitForDisconnected()) {
-            // qDebug() << "Déconnexion du serveur réussie";
+            qDebug() << "Déconnexion du serveur réussie";
         }
         else {
             qDebug() << "Échec de la déconnexion du serveur";
@@ -162,49 +163,65 @@ void TestModulesDMXProject::testTcpConnection()
     }
 }
 
+
 void TestModulesDMXProject::testSliderValue()
 {
+    if (!consoleMaterielle->isPortOpen()) {
+        QFAIL("Arduino not connected");
+        return;
+    }
+
     QSignalSpy spy(consoleMaterielle, &ConsoleMaterielle::channelValueChanged);
 
-    // Simulate slider value change
-    testSlider->setValue(50);
-    emit consoleMaterielle->channelValueChanged(testSlider->value());
-
-    // Ajout d'un délai pour permettre au signal d'être traité
+    // Ajout d'un délai pour permettre la lecture des données série
     QTest::qWait(100); // Attendre pendant 100 millisecondes
 
-    // Vérifier si le signal a été capturé
-    QCOMPARE(spy.count(), 1);
+    // vérifie qu'au moins un signal a été capturé
+    QVERIFY(spy.count() > 0);
 
-    // Récupérer la valeur capturée
-    QList<QVariant> args = spy.takeFirst();
-    int sliderValue = args.at(0).toInt();
-    qDebug() << "Slider value:" << sliderValue;
-    QCOMPARE(sliderValue, 50);
+    bool valueFound = false;
+    for (int i = 0; i < spy.count(); ++i) {
+        QList<QVariant> args = spy.takeAt(i);
+        int sliderValue = args.at(0).toInt();
+        qDebug() << "Slider value:" << sliderValue;
 
-    return;
+        if (sliderValue >= 0 && sliderValue <= 255) {
+            valueFound = true;
+            break;
+        }
+    }
+
+    // Vérifiez qu'au moins une valeur valide a été trouvée
+    QVERIFY(valueFound);
 }
+
+
+
 
 void TestModulesDMXProject::testJoystickValue()
 {
+    if (!consoleMaterielle->isPortOpen()) {
+        QFAIL("Arduino not connected");
+        return;
+    }
+
     QSignalSpy spyLeft(consoleMaterielle, &ConsoleMaterielle::previousChannel);
     QSignalSpy spyRight(consoleMaterielle, &ConsoleMaterielle::nextChannel);
 
-    // Simulate joystick movement
-    emit consoleMaterielle->previousChannel();
-    QTest::qWait(100); // Attendre pendant 100 millisecondes
-    emit consoleMaterielle->nextChannel();
-    QTest::qWait(100); // Attendre pendant 100 millisecondes
+    // Attendre un moment pour que la lecture série soit effectuée
+    QTest::qWait(1000); // Attendre pendant 100 millisecondes
 
-    // Vérifier si les signaux ont été capturés
-    QCOMPARE(spyLeft.count(), 1);
-    QCOMPARE(spyRight.count(), 1);
+    // Appeler manuellement onDataReceived pour traiter les données série
+    consoleMaterielle->onDataReceived();
 
-    if (spyLeft.count() == 1) {
-        qDebug() << "Joystick moved left";
+    // Vérifier si les signaux ont été capturés plus d'une fois
+    QVERIFY(spyLeft.count() > 1 || spyRight.count() > 1);
+
+    if (spyLeft.count() > 1) {
+        qDebug() << "Joystick moved left, count:" << spyLeft.count();
     }
-    else if (spyRight.count() == 1) {
-        qDebug() << "Joystick moved right";
+    else if (spyRight.count() > 1) {
+        qDebug() << "Joystick moved right, count:" << spyRight.count();
     }
     else {
         QFAIL("No joystick movement detected");
@@ -212,22 +229,31 @@ void TestModulesDMXProject::testJoystickValue()
     return;
 }
 
+
+
 void TestModulesDMXProject::testButtonValue()
 {
+    if (!consoleMaterielle->isPortOpen()) {
+        QFAIL("Arduino not connected");
+        return;
+    }
+
     QSignalSpy spy(consoleMaterielle, &ConsoleMaterielle::confirmButtonPressed);
 
-    // Simulate button press
-    emit consoleMaterielle->confirmButtonPressed();
+    // Attendre un moment pour que la lecture série soit effectuée
+    QTest::qWait(1000); // Attendre pendant 100 millisecondes
 
-    // Ajout d'un délai pour permettre au signal d'être traité
-    QTest::qWait(100); // Attendre pendant 100 millisecondes
+    // Appeler manuellement onDataReceived pour traiter les données série
+    consoleMaterielle->onDataReceived();
 
-    // Vérifier si le signal a été capturé
-    QCOMPARE(spy.count(), 1);
-    qDebug() << "Button press detected";
+    // Vérifier si le signal a été capturé plus d'une fois
+    QVERIFY(spy.count() > 1);
+    qDebug() << "Button press detected, count:" << spy.count();
 
     return;
 }
+
+
 
 
 

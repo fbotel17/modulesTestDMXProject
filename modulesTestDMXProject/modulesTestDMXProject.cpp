@@ -45,10 +45,10 @@ modulesTestDMXProject::modulesTestDMXProject(QWidget* parent) : QMainWindow(pare
 	socket->connectToHost("192.168.64.170", 12345);
 
 	// Connexion à l'Arduino
-	consoleController = new ConsoleController(this);
-	if (!consoleController->connectToArduino("COM8")) {
+	//consoleController = new ConsoleController(this);
+	/*if (!consoleController->connectToArduino("COM8")) {
 		qDebug() << "Échec de la connexion à l'Arduino.";
-	}
+	}*/
 
 	// Connecter les signaux de ConsoleController aux slots de modulesTestDMXProject
 	

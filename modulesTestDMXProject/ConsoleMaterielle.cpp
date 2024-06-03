@@ -2,24 +2,26 @@
 #include <QDebug>
 
 ConsoleMaterielle::ConsoleMaterielle(QSlider* slider, QObject* parent)
-    : QObject(parent), slider(slider)
+    : QObject(parent), slider(slider), port(nullptr)  // Initialiser port à nullptr
 {
-    /*port = new QSerialPort("COM8", this);
+    port = new QSerialPort("COM8", this);
     connect(port, &QSerialPort::readyRead, this, &ConsoleMaterielle::onDataReceived);
-    port->setBaudRate(9600);
+    port->setBaudRate(QSerialPort::Baud9600);
     port->setDataBits(QSerialPort::Data8);
     port->setParity(QSerialPort::NoParity);
-    port->setFlowControl(QSerialPort::NoFlowControl);*/
+    port->setFlowControl(QSerialPort::NoFlowControl);
 
-
-
-    
+    if (!port->open(QIODevice::ReadWrite)) {
+        qWarning() << "Failed to open port" << port->portName() << ", error:" << port->errorString();
+    }
 }
+
 
 ConsoleMaterielle::~ConsoleMaterielle()
 {
     
 }
+
 
 bool ConsoleMaterielle::connectToArduino(const QString& portName)
 {
@@ -72,6 +74,8 @@ void ConsoleMaterielle::onDataReceived()
             double dval = val / 1024.0 * 255.0;
             val = static_cast<int>(dval);
 
+            lastPotentiometerValue = val; // Mettre à jour la dernière valeur du potentiomètre
+
             emit channelValueChanged(val);
 
             if (slider) {
@@ -91,4 +95,9 @@ void ConsoleMaterielle::onDataReceived()
             emit confirmButtonPressed();
         }
     }
+}
+
+int ConsoleMaterielle::getLastPotentiometerValue() const
+{
+    return lastPotentiometerValue;
 }

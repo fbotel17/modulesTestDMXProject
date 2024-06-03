@@ -16,6 +16,7 @@ public:
     bool isPortOpen() const;
     QSerialPort* getPort() const; // Ajoutez cette ligne
     bool connectToArduino(const QString& portName);
+    int getLastPotentiometerValue() const;
 
 signals:
     void channelValueChanged(int value);
@@ -23,13 +24,14 @@ signals:
     void nextChannel();
     void confirmButtonPressed();
 
-private slots:
+public slots:
     void onDataReceived();
 
 private:
     QSerialPort m_serialPort;
     QSerialPort* port;
     QSlider* slider;
+    int lastPotentiometerValue;
 };
 
 #endif // CONSOLEMATERIELLE_H
